@@ -17,6 +17,7 @@ const config = defineConfig({
   ],
   optimizeDeps: {
     exclude: ['@tanstack/start-server-core'],
+    include: ['use-sync-external-store/shim/with-selector'],
   },
 })
 

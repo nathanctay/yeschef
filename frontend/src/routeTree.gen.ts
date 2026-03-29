@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VideosRouteImport } from './routes/videos'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
@@ -29,6 +30,11 @@ import { Route as CookbooksIdIndexRouteImport } from './routes/cookbooks.$id.ind
 import { Route as RecipesIdEditRouteImport } from './routes/recipes.$id.edit'
 import { Route as CookbooksIdEditRouteImport } from './routes/cookbooks.$id.edit'
 
+const VideosRoute = VideosRouteImport.update({
+  id: '/videos',
+  path: '/videos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExploreRoute = ExploreRouteImport.update({
   id: '/explore',
   path: '/explore',
@@ -128,6 +134,7 @@ const CookbooksIdEditRoute = CookbooksIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/videos': typeof VideosRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/cookbooks/$id': typeof CookbooksIdRouteWithChildren
@@ -149,6 +156,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/videos': typeof VideosRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/cookbooks/new': typeof CookbooksNewRoute
@@ -169,6 +177,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/videos': typeof VideosRoute
   '/auth/signin': typeof AuthSigninRoute
   '/auth/signup': typeof AuthSignupRoute
   '/cookbooks/$id': typeof CookbooksIdRouteWithChildren
@@ -192,6 +201,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/explore'
+    | '/videos'
     | '/auth/signin'
     | '/auth/signup'
     | '/cookbooks/$id'
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/explore'
+    | '/videos'
     | '/auth/signin'
     | '/auth/signup'
     | '/cookbooks/new'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/explore'
+    | '/videos'
     | '/auth/signin'
     | '/auth/signup'
     | '/cookbooks/$id'
@@ -254,6 +266,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExploreRoute: typeof ExploreRoute
+  VideosRoute: typeof VideosRoute
   AuthSigninRoute: typeof AuthSigninRoute
   AuthSignupRoute: typeof AuthSignupRoute
   CookbooksIdRoute: typeof CookbooksIdRouteWithChildren
@@ -271,6 +284,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/videos': {
+      id: '/videos'
+      path: '/videos'
+      fullPath: '/videos'
+      preLoaderRoute: typeof VideosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explore': {
       id: '/explore'
       path: '/explore'
@@ -438,6 +458,7 @@ const RecipesIdRouteWithChildren = RecipesIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExploreRoute: ExploreRoute,
+  VideosRoute: VideosRoute,
   AuthSigninRoute: AuthSigninRoute,
   AuthSignupRoute: AuthSignupRoute,
   CookbooksIdRoute: CookbooksIdRouteWithChildren,

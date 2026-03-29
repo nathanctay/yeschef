@@ -38,6 +38,13 @@ function EditRecipePage() {
     ingredients: content.ingredients,
     steps: content.steps,
     notes: content.notes ?? '',
+    video_path: (recipe as any).video_path as string | null ?? null,
+    images: (recipe as any).images as string[] ?? [],
+    servings: (recipe as any).servings as number | null ?? null,
+    prep_time_minutes: (recipe as any).prep_time_minutes as number | null ?? null,
+    cook_time_minutes: (recipe as any).cook_time_minutes as number | null ?? null,
+    total_time_minutes: (recipe as any).total_time_minutes as number | null ?? null,
+    nutrition_json: (recipe as any).nutrition_json as RecipeFormData['nutrition_json'] ?? null,
   }
 
   async function handleSubmit(formData: FormData) {

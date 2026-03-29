@@ -15,6 +15,8 @@ export const Route = createFileRoute('/cookbooks/')({
 
 function CookbooksPage() {
   const cookbooks = Route.useLoaderData()
+  const ownCookbooks = cookbooks.filter((c) => !c.sharedWithMe)
+  const sharedCookbooks = cookbooks.filter((c) => c.sharedWithMe)
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
@@ -28,7 +30,7 @@ function CookbooksPage() {
         </Link>
       </div>
 
-      {cookbooks.length === 0 ? (
+      {ownCookbooks.length === 0 ? (
         <div className="text-center py-20">
           <p className="text-[#6B7280] text-lg mb-4">
             Create your first cookbook
@@ -42,10 +44,21 @@ function CookbooksPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {cookbooks.map((cookbook) => (
+          {ownCookbooks.map((cookbook) => (
             <CookbookCard key={cookbook.id} cookbook={cookbook} />
           ))}
         </div>
+      )}
+
+      {sharedCookbooks.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-lg font-semibold text-[#1F2937] mb-4">Shared with me</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {sharedCookbooks.map((cookbook) => (
+              <CookbookCard key={cookbook.id} cookbook={cookbook} />
+            ))}
+          </div>
+        </section>
       )}
     </main>
   )

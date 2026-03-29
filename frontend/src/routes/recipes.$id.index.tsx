@@ -1,4 +1,5 @@
 import { createFileRoute, useRouter, Link } from '@tanstack/react-router'
+import { Heart } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { getRecipe, deleteRecipe, likeRecipe, unlikeRecipe, forkRecipe } from '../server/recipes'
 import { getSession } from '../server/auth'
@@ -6,7 +7,8 @@ import { CommentList } from '../components/CommentList'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { LogRecipeDialog } from '../components/LogRecipeDialog'
 import { AddToCookbookDialog } from '../components/AddToCookbookDialog'
-
+import { StarPicker } from '../components/StarPicker'
+import { RecipeMediaCarousel } from '../components/RecipeMediaCarousel'
 import { createLog, listLogsForRecipe } from '../server/logs'
 
 export const Route = createFileRoute('/recipes/$id/')({
@@ -35,6 +37,11 @@ function LogListSection({ recipeId, refreshKey }: { recipeId: string; refreshKey
         <li key={log.id} style={{ padding: '0.5rem 0', borderBottom: '1px solid var(--line)' }}>
           <span style={{ fontWeight: 600 }}>{log.author.display_name}</span>
           {' — '}{new Date(log.logged_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+          {log.rating != null && (
+            <div style={{ marginTop: '0.25rem' }}>
+              <StarPicker value={log.rating} readOnly size={16} />
+            </div>
+          )}
           {log.notes && <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem' }}>{log.notes}</p>}
         </li>
       ))}
@@ -117,8 +124,8 @@ function RecipePage() {
     }
   }
 
-  async function handleLogSubmit(data: { loggedAt: string; notes: string; visibility: 'public' | 'private' }) {
-    await createLog({ data: { recipeId: recipe.id, loggedAt: data.loggedAt, notes: data.notes, visibility: data.visibility } })
+  async function handleLogSubmit(data: { loggedAt: string; notes: string; visibility: 'public' | 'private'; rating: number | null }) {
+    await createLog({ data: { recipeId: recipe.id, loggedAt: data.loggedAt, notes: data.notes, visibility: data.visibility, rating: data.rating } })
     setLogRefreshKey((k) => k + 1)
   }
 
@@ -132,13 +139,22 @@ function RecipePage() {
 
   return (
     <div style={{ maxWidth: '720px', margin: '0 auto', padding: '32px 24px', color: '#1F2937' }}>
-      {recipe.cover_image_path && (
-        <img
-          src={recipe.cover_image_path}
-          alt={recipe.title}
-          style={{ width: '100%', borderRadius: '8px', marginBottom: '24px', objectFit: 'cover', maxHeight: '360px' }}
-        />
-      )}
+      {(() => {
+        const rawImages = (recipe as any).images
+        const normalizedImages: string[] = Array.isArray(rawImages)
+          ? rawImages
+          : typeof rawImages === 'string'
+            ? (() => { try { const p = JSON.parse(rawImages); return Array.isArray(p) ? p : [] } catch { return [] } })()
+            : []
+        return (
+          <RecipeMediaCarousel
+            coverImagePath={recipe.cover_image_path}
+            videoPath={(recipe as any).video_path ?? null}
+            images={normalizedImages}
+            title={recipe.title}
+          />
+        )
+      })()}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '16px' }}>
         <h1 style={{ fontFamily: 'serif', fontSize: '2.2rem', margin: 0, flex: 1 }}>{recipe.title}</h1>
@@ -203,7 +219,7 @@ function RecipePage() {
             cursor: viewerId && !isLiking ? 'pointer' : 'default',
           }}
         >
-          <span style={{ fontSize: '1rem' }}>{recipe.viewerHasLiked ? '[♥]' : '[♡]'}</span>
+          <Heart size={16} fill={recipe.viewerHasLiked ? 'currentColor' : 'none'} />
           {recipe.like_count}
         </button>
 
@@ -260,6 +276,29 @@ function RecipePage() {
         )}
       </div>
 
+      {(recipe as any).rating_avg != null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+          <StarPicker value={Math.round((recipe as any).rating_avg * 2) / 2} readOnly size={20} />
+          <span style={{ fontSize: '0.9rem', color: '#6B7280' }}>
+            {((recipe as any).rating_avg as number).toFixed(1)} · {(recipe as any).rating_count} {(recipe as any).rating_count === 1 ? 'log' : 'logs'}
+          </span>
+        </div>
+      )}
+
+      {(() => {
+        const r = recipe as any
+        const hasMeta = r.servings || r.prep_time_minutes || r.cook_time_minutes || r.total_time_minutes
+        if (!hasMeta) return null
+        return (
+          <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '20px', padding: '12px 16px', background: '#FFFDF8', border: '1px solid #F1E7DA', borderRadius: '8px', fontSize: '0.9rem', color: '#6B7280' }}>
+            {r.servings && <span><strong style={{ color: '#1F2937' }}>{r.servings}</strong> servings</span>}
+            {r.prep_time_minutes && <span>Prep: <strong style={{ color: '#1F2937' }}>{r.prep_time_minutes}</strong> min</span>}
+            {r.cook_time_minutes && <span>Cook: <strong style={{ color: '#1F2937' }}>{r.cook_time_minutes}</strong> min</span>}
+            {r.total_time_minutes && <span>Total: <strong style={{ color: '#1F2937' }}>{r.total_time_minutes}</strong> min</span>}
+          </div>
+        )
+      })()}
+
       {recipe.description && (
         <p style={{ fontSize: '1rem', color: '#374151', marginBottom: '24px', lineHeight: 1.6 }}>
           {recipe.description}
@@ -283,6 +322,23 @@ function RecipePage() {
           ))}
         </ol>
       </section>
+
+      {(() => {
+        const n = (recipe as any).nutrition_json as { calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number; fiber_g?: number } | null
+        if (!n || !Object.keys(n).length) return null
+        return (
+          <section style={{ marginBottom: '24px' }}>
+            <h2 style={sectionHeadingStyle}>Nutrition (per serving)</h2>
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '0.9rem', color: '#6B7280' }}>
+              {n.calories != null && <span><strong style={{ color: '#1F2937' }}>{n.calories}</strong> cal</span>}
+              {n.protein_g != null && <span><strong style={{ color: '#1F2937' }}>{n.protein_g}g</strong> protein</span>}
+              {n.carbs_g != null && <span><strong style={{ color: '#1F2937' }}>{n.carbs_g}g</strong> carbs</span>}
+              {n.fat_g != null && <span><strong style={{ color: '#1F2937' }}>{n.fat_g}g</strong> fat</span>}
+              {n.fiber_g != null && <span><strong style={{ color: '#1F2937' }}>{n.fiber_g}g</strong> fiber</span>}
+            </div>
+          </section>
+        )
+      })()}
 
       {content.notes && (
         <section style={{ marginBottom: '28px' }}>

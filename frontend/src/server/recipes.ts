@@ -28,6 +28,49 @@ async function uploadCoverImage(file: File, bucket: string): Promise<string> {
   return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
 }
 
+async function uploadRecipeImage(file: File): Promise<string> {
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    throw new Error('Image must be a JPEG, PNG, WebP, or GIF')
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    throw new Error('Image must be smaller than 10MB')
+  }
+
+  const supabase = getSupabaseClient()
+  const mimeToExt: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  }
+  const ext = mimeToExt[file.type]
+  const path = `${crypto.randomUUID()}.${ext}`
+  const buffer = Buffer.from(await file.arrayBuffer())
+  await supabase.storage.from('recipe-images').upload(path, buffer, { contentType: file.type })
+  return supabase.storage.from('recipe-images').getPublicUrl(path).data.publicUrl
+}
+
+async function uploadVideo(file: File): Promise<string> {
+  const MAX_SIZE_BYTES = 200 * 1024 * 1024 // 200MB
+
+  if (!file.type.startsWith('video/')) {
+    throw new Error('File must be a video')
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    throw new Error('Video must be smaller than 200MB')
+  }
+
+  const supabase = getSupabaseClient()
+  const ext = file.type.split('/')[1] ?? 'mp4'
+  const path = `${crypto.randomUUID()}.${ext}`
+  const buffer = Buffer.from(await file.arrayBuffer())
+  await supabase.storage.from('recipe-videos').upload(path, buffer, { contentType: file.type })
+  return supabase.storage.from('recipe-videos').getPublicUrl(path).data.publicUrl
+}
+
 export const listRecipes = createServerFn()
   .inputValidator((data: { cursor?: string; limit?: number }) =>
     z
@@ -40,20 +83,73 @@ export const listRecipes = createServerFn()
     const viewerId = session?.id ?? null
     const limit = data.limit ?? 20
 
+    // Base select fragment (reused for both queries)
+    const SELECT = `id, owner_id, title, description, cover_image_path, visibility, created_at,
+      rating_avg, rating_count,
+      like_count:recipe_likes(count),
+      log_count:recipe_logs(count),
+      owner:profiles!owner_id(id, display_name, avatar_url)`
+
+    function normalize(rows: Array<Record<string, any>>) {
+      return rows.map((r) => ({
+        ...r,
+        like_count: r.like_count[0]?.count ?? 0,
+        log_count: r.log_count[0]?.count ?? 0,
+      }))
+    }
+
+    // If logged in, try to rank followed users first
+    if (viewerId) {
+      const { data: follows } = await supabase
+        .from('user_follows')
+        .select('following_id')
+        .eq('follower_id', viewerId)
+
+      const followedIds = (follows ?? []).map((f) => f.following_id)
+
+      if (followedIds.length > 0) {
+        const visibilityFilter = `visibility.eq.public,owner_id.eq.${viewerId}`
+
+        // Note: cursor pagination is not applied on the ranked path in Phase 2 — a full re-fetch is used.
+        const followedQuery = supabase
+          .from('recipes')
+          .select(SELECT)
+          .in('owner_id', followedIds)
+          .or(visibilityFilter)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+
+        const othersQuery = supabase
+          .from('recipes')
+          .select(SELECT)
+          .not('owner_id', 'in', `(${followedIds.join(',')})`)
+          .or(visibilityFilter)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+
+        const [{ data: followedRows, error: e1 }, { data: otherRows, error: e2 }] =
+          await Promise.all([followedQuery, othersQuery])
+
+        if (e1) throw new Error(e1.message)
+        if (e2) throw new Error(e2.message)
+
+        const combined = [
+          ...normalize(followedRows ?? []),
+          ...normalize(otherRows ?? []),
+        ].slice(0, limit)
+
+        return combined
+      }
+    }
+
+    // Fallback: original unranked query
     let query = supabase
       .from('recipes')
-      .select(
-        `id, owner_id, title, description, cover_image_path, visibility, created_at,
-         like_count:recipe_likes(count),
-         log_count:recipe_logs(count),
-         owner:profiles!owner_id(id, display_name, avatar_url)`
-      )
+      .select(SELECT)
       .order('created_at', { ascending: false })
       .limit(limit)
 
-    if (data.cursor) {
-      query = query.lt('created_at', data.cursor)
-    }
+    if (data.cursor) query = query.lt('created_at', data.cursor)
 
     if (viewerId) {
       query = query.or(`visibility.eq.public,owner_id.eq.${viewerId}`)
@@ -63,12 +159,7 @@ export const listRecipes = createServerFn()
 
     const { data: rows, error } = await query
     if (error) throw new Error(error.message)
-
-    return rows.map((r: any) => ({
-      ...r,
-      like_count: r.like_count[0]?.count ?? 0,
-      log_count: r.log_count[0]?.count ?? 0,
-    }))
+    return normalize(rows)
   })
 
 export const listRecipesForUser = createServerFn()
@@ -82,6 +173,7 @@ export const listRecipesForUser = createServerFn()
       .from('recipes')
       .select(
         `id, owner_id, title, description, cover_image_path, visibility, created_at,
+         rating_avg, rating_count,
          like_count:recipe_likes(count),
          log_count:recipe_logs(count),
          owner:profiles!owner_id(id, display_name, avatar_url)`
@@ -113,8 +205,9 @@ export const getRecipe = createServerFn()
     const { data: recipe, error } = await supabase
       .from('recipes')
       .select(
-        `id, owner_id, title, description, cover_image_path, visibility, content_json, created_at, updated_at,
+        `id, owner_id, title, description, cover_image_path, video_path, visibility, content_json, created_at, updated_at,
          forked_from_recipe_id,
+         images, rating_avg, rating_count, servings, prep_time_minutes, cook_time_minutes, total_time_minutes, nutrition_json,
          like_count:recipe_likes(count),
          log_count:recipe_logs(count),
          comment_count:recipe_comments(count),
@@ -189,6 +282,31 @@ export const createRecipe = createServerFn({ method: 'POST' })
       cover_image_path = await uploadCoverImage(coverImageFile, 'recipe-covers')
     }
 
+    // New image gallery
+    const imageFilesRaw = data.getAll('imageFiles') as File[]
+    const imageFiles = imageFilesRaw.filter((f) => f && f.size > 0)
+    const uploadedImages: string[] = []
+    for (const f of imageFiles) {
+      uploadedImages.push(await uploadRecipeImage(f))
+    }
+
+    // New metadata fields
+    const servings = data.get('servings') ? parseInt(data.get('servings') as string, 10) : null
+    const prep_time_minutes = data.get('prep_time_minutes') ? parseInt(data.get('prep_time_minutes') as string, 10) : null
+    const cook_time_minutes = data.get('cook_time_minutes') ? parseInt(data.get('cook_time_minutes') as string, 10) : null
+    const total_time_minutes = data.get('total_time_minutes') ? parseInt(data.get('total_time_minutes') as string, 10) : null
+    const nutritionRaw = data.get('nutrition_json') as string | null
+    let nutrition_json: object | null = null
+    try {
+      if (nutritionRaw) nutrition_json = JSON.parse(nutritionRaw)
+    } catch {}
+
+    const videoFile = data.get('videoFile') as File | null
+    let video_path: string | null = null
+    if (videoFile && videoFile.size > 0) {
+      video_path = await uploadVideo(videoFile)
+    }
+
     const { data: row, error } = await supabase
       .from('recipes')
       .insert({
@@ -198,6 +316,13 @@ export const createRecipe = createServerFn({ method: 'POST' })
         visibility,
         content_json,
         cover_image_path,
+        video_path,
+        images: uploadedImages,
+        servings,
+        prep_time_minutes,
+        cook_time_minutes,
+        total_time_minutes,
+        nutrition_json,
       })
       .select('id')
       .single()
@@ -253,6 +378,38 @@ export const updateRecipe = createServerFn({ method: 'POST' })
       cover_image_path = await uploadCoverImage(coverImageFile, 'recipe-covers')
     }
 
+    // Keep existing images + upload new ones
+    const existingImagesRaw = data.get('images') as string | null
+    let existingImages: string[] = []
+    try {
+      if (existingImagesRaw) existingImages = JSON.parse(existingImagesRaw)
+    } catch {}
+
+    const imageFilesRaw = data.getAll('imageFiles') as File[]
+    const imageFiles = imageFilesRaw.filter((f) => f && f.size > 0)
+    const newImageUrls: string[] = []
+    for (const f of imageFiles) {
+      newImageUrls.push(await uploadRecipeImage(f))
+    }
+    const allImages = [...existingImages, ...newImageUrls]
+
+    // Metadata fields
+    const servings = data.get('servings') ? parseInt(data.get('servings') as string, 10) : null
+    const prep_time_minutes = data.get('prep_time_minutes') ? parseInt(data.get('prep_time_minutes') as string, 10) : null
+    const cook_time_minutes = data.get('cook_time_minutes') ? parseInt(data.get('cook_time_minutes') as string, 10) : null
+    const total_time_minutes = data.get('total_time_minutes') ? parseInt(data.get('total_time_minutes') as string, 10) : null
+    const nutritionRaw = data.get('nutrition_json') as string | null
+    let nutrition_json: object | null | undefined
+    try {
+      nutrition_json = nutritionRaw ? JSON.parse(nutritionRaw) : undefined
+    } catch {}
+
+    const videoFile = data.get('videoFile') as File | null
+    let video_path: string | undefined
+    if (videoFile && videoFile.size > 0) {
+      video_path = await uploadVideo(videoFile)
+    }
+
     const { error } = await supabase
       .from('recipes')
       .update({
@@ -261,6 +418,13 @@ export const updateRecipe = createServerFn({ method: 'POST' })
         visibility,
         content_json,
         ...(cover_image_path !== undefined ? { cover_image_path } : {}),
+        ...(video_path !== undefined ? { video_path } : {}),
+        images: allImages,
+        servings,
+        prep_time_minutes,
+        cook_time_minutes,
+        total_time_minutes,
+        ...(nutrition_json !== undefined ? { nutrition_json } : {}),
       })
       .eq('id', id)
 

@@ -1,9 +1,9 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter, Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { getLog, updateLog, deleteLog } from '../server/logs'
 import { getSession } from '../server/auth'
-import { useQueryClient } from '@tanstack/react-query'
-import ConfirmDialog from '../components/ConfirmDialog'
+import { ConfirmDialog } from '../components/ConfirmDialog'
+import { StarPicker } from '../components/StarPicker'
 
 export const Route = createFileRoute('/logs/$id')({
   loader: async ({ params }) => {
@@ -28,13 +28,14 @@ function LogDetailPage() {
   const { log, viewerId } = Route.useLoaderData()
   const { id } = Route.useParams()
   const navigate = useNavigate()
-  const qc = useQueryClient()
+  const router = useRouter()
   const isOwner = viewerId !== null && viewerId === log.user_id
 
   const [editing, setEditing] = useState(false)
   const [loggedAt, setLoggedAt] = useState(log.logged_at)
   const [notes, setNotes] = useState(log.notes ?? '')
   const [visibility, setVisibility] = useState(log.visibility)
+  const [rating, setRating] = useState<number | null>(log.rating ?? null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -45,11 +46,10 @@ function LogDetailPage() {
     setError(null)
     try {
       await updateLog({
-        data: { id, loggedAt, notes, visibility },
+        data: { id, loggedAt, notes, visibility, rating },
       })
-      qc.invalidateQueries({ queryKey: ['logs', id] })
       setEditing(false)
-      navigate({ to: '/logs/$id', params: { id } })
+      await router.invalidate()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
     } finally {
@@ -109,6 +109,12 @@ function LogDetailPage() {
           {log.visibility === 'private' ? 'Private' : 'Public'}
         </span>
       </div>
+
+      {log.rating != null && (
+        <div className="mb-4">
+          <StarPicker value={log.rating} readOnly />
+        </div>
+      )}
 
       {!editing && (
         <>
@@ -175,6 +181,13 @@ function LogDetailPage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-[#1F2937] mb-1">
+              Rating (optional)
+            </label>
+            <StarPicker value={rating} onChange={setRating} />
+          </div>
+
+          <div>
             <label
               htmlFor="visibility"
               className="block text-sm font-medium text-[#1F2937] mb-1"
@@ -184,7 +197,7 @@ function LogDetailPage() {
             <select
               id="visibility"
               value={visibility}
-              onChange={(e) => setVisibility(e.target.value)}
+              onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
               className="border border-[#F1E7DA] rounded-md px-3 py-2 text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#E53935] bg-white"
             >
               <option value="public">Public</option>
@@ -206,6 +219,7 @@ function LogDetailPage() {
                 setLoggedAt(log.logged_at)
                 setNotes(log.notes ?? '')
                 setVisibility(log.visibility)
+                setRating(log.rating ?? null)
                 setError(null)
               }}
               className="px-4 py-2 rounded-md border border-[#F1E7DA] text-[#6B7280] text-sm font-medium hover:bg-[#FFFDF8] transition-colors"

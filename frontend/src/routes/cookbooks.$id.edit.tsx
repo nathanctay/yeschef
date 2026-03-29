@@ -1,11 +1,13 @@
-import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link, notFound } from '@tanstack/react-router'
 import { useState } from 'react'
 import { getCookbook, updateCookbook } from '../server/cookbooks'
 import { COOKBOOK_COLORS } from '../lib/cookbookColors'
 
 export const Route = createFileRoute('/cookbooks/$id/edit')({
   loader: async ({ params }) => {
-    return getCookbook({ data: { id: params.id } })
+    const cookbook = await getCookbook({ data: { id: params.id } })
+    if (cookbook.viewerPermission !== 'owner') throw notFound()
+    return cookbook
   },
   component: EditCookbookPage,
 })
@@ -20,6 +22,9 @@ function EditCookbookPage() {
   )
   const [selectedColor, setSelectedColor] = useState(
     cookbook.cover_color ?? COOKBOOK_COLORS[0].value
+  )
+  const [visibility, setVisibility] = useState<'public' | 'private'>(
+    cookbook.visibility as 'public' | 'private'
   )
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -77,6 +82,34 @@ function EditCookbookPage() {
             defaultValue={cookbook.description ?? ''}
             className="w-full border border-[#F1E7DA] rounded-md px-3 py-2 text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#E53935] bg-white resize-none"
           />
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-[#1F2937] mb-2">Visibility</p>
+          <div className="flex gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="visibility"
+                value="private"
+                checked={visibility === 'private'}
+                onChange={() => setVisibility('private')}
+                className="accent-[#E53935]"
+              />
+              <span className="text-sm text-[#1F2937]">Private</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="visibility"
+                value="public"
+                checked={visibility === 'public'}
+                onChange={() => setVisibility('public')}
+                className="accent-[#E53935]"
+              />
+              <span className="text-sm text-[#1F2937]">Public</span>
+            </label>
+          </div>
         </div>
 
         <div>

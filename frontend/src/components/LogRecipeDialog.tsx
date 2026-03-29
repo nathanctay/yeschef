@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
+import { StarPicker } from './StarPicker'
 
 interface LogRecipeDialogProps {
   isOpen: boolean
   onClose: () => void
-  onSubmit: (data: { loggedAt: string; notes: string; visibility: 'public' | 'private' }) => Promise<void>
+  onSubmit: (data: { loggedAt: string; notes: string; visibility: 'public' | 'private'; rating: number | null }) => Promise<void>
 }
 
 export function LogRecipeDialog({ isOpen, onClose, onSubmit }: LogRecipeDialogProps) {
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10))
   const [logNotes, setLogNotes] = useState('')
   const [logVisibility, setLogVisibility] = useState<'public' | 'private'>('public')
+  const [rating, setRating] = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const firstInputRef = useRef<HTMLInputElement>(null)
 
@@ -28,6 +30,7 @@ export function LogRecipeDialog({ isOpen, onClose, onSubmit }: LogRecipeDialogPr
       setLogDate(new Date().toISOString().slice(0, 10))
       setLogNotes('')
       setLogVisibility('public')
+      setRating(null)
     }
   }, [isOpen])
 
@@ -37,7 +40,7 @@ export function LogRecipeDialog({ isOpen, onClose, onSubmit }: LogRecipeDialogPr
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      await onSubmit({ loggedAt: logDate, notes: logNotes, visibility: logVisibility })
+      await onSubmit({ loggedAt: logDate, notes: logNotes, visibility: logVisibility, rating })
       onClose()
     } finally {
       setIsSubmitting(false)
@@ -106,6 +109,12 @@ export function LogRecipeDialog({ isOpen, onClose, onSubmit }: LogRecipeDialogPr
               onChange={(e) => setLogNotes(e.target.value)}
               placeholder="How did it turn out? Any adjustments?"
             />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px', fontSize: '0.85rem', color: '#1F2937' }}>
+              Rating (optional)
+            </label>
+            <StarPicker value={rating} onChange={setRating} />
           </div>
           <div>
             <label style={{ display: 'block', fontWeight: 600, marginBottom: '4px', fontSize: '0.85rem', color: '#1F2937' }}>

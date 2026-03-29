@@ -10,6 +10,7 @@ export const createLog = createServerFn()
     loggedAt: string
     notes: string
     visibility: 'public' | 'private'
+    rating?: number | null
   }) =>
     z
       .object({
@@ -17,6 +18,7 @@ export const createLog = createServerFn()
         loggedAt: z.string(),
         notes: z.string(),
         visibility: z.enum(['public', 'private']),
+        rating: z.number().min(0.5).max(5).multipleOf(0.5).nullable().optional(),
       })
       .parse(data)
   )
@@ -43,11 +45,24 @@ export const createLog = createServerFn()
         logged_at: data.loggedAt,
         notes: data.notes || null,
         visibility: data.visibility,
+        rating: data.rating ?? null,
       })
       .select('id')
       .single()
 
     if (error) throw error
+
+    if (data.rating != null) {
+      const { data: rData } = await supabase
+        .from('recipes').select('rating_avg, rating_count').eq('id', data.recipeId).single()
+      const oldCount = rData?.rating_count ?? 0
+      const oldAvg = rData?.rating_avg ?? 0
+      const newCount = oldCount + 1
+      const newAvg = oldCount === 0 ? data.rating : (oldAvg * oldCount + data.rating) / newCount
+      const { error: avgErr1 } = await supabase.from('recipes').update({ rating_avg: newAvg, rating_count: newCount }).eq('id', data.recipeId)
+      if (avgErr1) throw new Error(avgErr1.message)
+    }
+
     return { id: log.id }
   })
 
@@ -57,6 +72,7 @@ export const updateLog = createServerFn()
     loggedAt?: string
     notes?: string
     visibility?: 'public' | 'private'
+    rating?: number | null
   }) =>
     z
       .object({
@@ -64,6 +80,7 @@ export const updateLog = createServerFn()
         loggedAt: z.string().optional(),
         notes: z.string().optional(),
         visibility: z.enum(['public', 'private']).optional(),
+        rating: z.number().min(0.5).max(5).multipleOf(0.5).nullable().optional(),
       })
       .parse(data)
   )
@@ -73,7 +90,7 @@ export const updateLog = createServerFn()
 
     const { data: existing, error: fetchError } = await supabase
       .from('recipe_logs')
-      .select('user_id')
+      .select('user_id, recipe_id, rating')
       .eq('id', data.id)
       .single()
 
@@ -84,6 +101,7 @@ export const updateLog = createServerFn()
     if (data.loggedAt !== undefined) updates.logged_at = data.loggedAt
     if (data.notes !== undefined) updates.notes = data.notes
     if (data.visibility !== undefined) updates.visibility = data.visibility
+    if (data.rating !== undefined) updates.rating = data.rating ?? null
 
     const { error } = await supabase
       .from('recipe_logs')
@@ -91,6 +109,31 @@ export const updateLog = createServerFn()
       .eq('id', data.id)
 
     if (error) throw error
+
+    const oldRating = (existing as any).rating as number | null
+    const newRating = data.rating !== undefined ? (data.rating ?? null) : oldRating
+
+    if (oldRating !== newRating) {
+      const { data: rData } = await supabase
+        .from('recipes').select('rating_avg, rating_count').eq('id', (existing as any).recipe_id).single()
+      let count = rData?.rating_count ?? 0
+      let avg = rData?.rating_avg ?? 0
+
+      if (oldRating != null && count > 0) {
+        if (count === 1) { count = 0; avg = 0 }
+        else { avg = (avg * count - oldRating) / (count - 1); count -= 1 }
+      }
+      if (newRating != null) {
+        avg = count === 0 ? newRating : (avg * count + newRating) / (count + 1)
+        count += 1
+      }
+
+      const { error: avgErr2 } = await supabase.from('recipes').update({
+        rating_avg: count === 0 ? null : avg,
+        rating_count: count,
+      }).eq('id', (existing as any).recipe_id)
+      if (avgErr2) throw new Error(avgErr2.message)
+    }
   })
 
 export const deleteLog = createServerFn()
@@ -103,7 +146,7 @@ export const deleteLog = createServerFn()
 
     const { data: existing, error: fetchError } = await supabase
       .from('recipe_logs')
-      .select('user_id')
+      .select('user_id, recipe_id, rating')
       .eq('id', data.id)
       .single()
 
@@ -116,6 +159,23 @@ export const deleteLog = createServerFn()
       .eq('id', data.id)
 
     if (error) throw error
+
+    const deletedRating = (existing as any).rating as number | null
+    if (deletedRating != null) {
+      const { data: rData } = await supabase
+        .from('recipes').select('rating_avg, rating_count').eq('id', (existing as any).recipe_id).single()
+      const oldCount = rData?.rating_count ?? 0
+      const oldAvg = rData?.rating_avg ?? 0
+      if (oldCount <= 1) {
+        const { error: avgErr3a } = await supabase.from('recipes').update({ rating_avg: null, rating_count: 0 }).eq('id', (existing as any).recipe_id)
+        if (avgErr3a) throw new Error(avgErr3a.message)
+      } else {
+        const newCount = oldCount - 1
+        const newAvg = (oldAvg * oldCount - deletedRating) / newCount
+        const { error: avgErr3b } = await supabase.from('recipes').update({ rating_avg: newAvg, rating_count: newCount }).eq('id', (existing as any).recipe_id)
+        if (avgErr3b) throw new Error(avgErr3b.message)
+      }
+    }
   })
 
 export const getLog = createServerFn()

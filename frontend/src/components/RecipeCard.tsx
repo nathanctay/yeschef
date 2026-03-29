@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { Heart } from 'lucide-react'
+import { StarPicker } from './StarPicker'
 
 interface RecipeCardProps {
   recipe: {
@@ -7,6 +9,8 @@ interface RecipeCardProps {
     cover_image_path: string | null
     like_count: number
     log_count: number
+    rating_avg?: number | null
+    rating_count?: number
     owner: {
       display_name: string
       avatar_url: string | null
@@ -31,10 +35,10 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         transition: 'box-shadow 0.15s ease',
       }}
       onMouseEnter={(e) => {
-        ;(e.currentTarget as HTMLAnchorElement).style.boxShadow = '4px 4px 0 rgba(229, 57, 53, 0.18)'
+        ; (e.currentTarget as HTMLAnchorElement).style.boxShadow = '4px 4px 0 rgba(229, 57, 53, 0.18)'
       }}
       onMouseLeave={(e) => {
-        ;(e.currentTarget as HTMLAnchorElement).style.boxShadow = '2px 2px 0 rgba(229, 57, 53, 0.08)'
+        ; (e.currentTarget as HTMLAnchorElement).style.boxShadow = '2px 2px 0 rgba(229, 57, 53, 0.08)'
       }}
     >
       <div style={{ width: '100%', aspectRatio: '16/9', background: '#F1E7DA', overflow: 'hidden' }}>
@@ -90,8 +94,14 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
         </div>
 
         <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', color: '#6B7280' }}>
-          <span>{recipe.like_count} {recipe.like_count === 1 ? 'like' : 'likes'}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <Heart size={13} fill="#E53935" color="#E53935" />
+            {recipe.like_count}
+          </span>
           <span>{recipe.log_count} {recipe.log_count === 1 ? 'log' : 'logs'}</span>
+          {(recipe.rating_avg != null && (recipe.rating_count ?? 0) > 0) && (
+            <StarPicker value={Math.round((recipe as any).rating_avg * 2) / 2} readOnly size={20} />
+          )}
         </div>
       </div>
     </Link>

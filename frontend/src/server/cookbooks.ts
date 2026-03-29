@@ -27,7 +27,7 @@ export const listCookbooks = createServerFn().handler(async () => {
 
   if (error) throw error
 
-  return (data ?? []).map((row) => ({
+  const ownCookbooks = (data ?? []).map((row) => ({
     id: row.id,
     owner_id: row.owner_id,
     name: row.name,
@@ -38,7 +38,46 @@ export const listCookbooks = createServerFn().handler(async () => {
     visibility: row.visibility,
     created_at: row.created_at,
     recipe_count: (row.cookbook_recipes as unknown as { count: number }[])[0]?.count ?? 0,
+    viewerPermission: 'owner' as const,
+    sharedWithMe: false,
   }))
+
+  const { data: shares } = await supabase
+    .from('cookbook_shares')
+    .select('permission, cookbook:cookbooks(id, name, cover_style, cover_color, cover_image_path, owner_id, visibility, created_at, cookbook_recipes(count))')
+    .eq('user_id', user.id)
+
+  const sharedCookbooks = (shares ?? [])
+    .filter((s) => s.cookbook)
+    .map((s) => {
+      const cb = s.cookbook as {
+        id: string
+        name: string
+        cover_style: string
+        cover_color: string | null
+        cover_image_path: string | null
+        owner_id: string
+        visibility: string
+        created_at: string
+        cookbook_recipes: { count: number }[]
+      }
+      return {
+        id: cb.id,
+        owner_id: cb.owner_id,
+        name: cb.name,
+        description: null as string | null,
+        cover_style: cb.cover_style,
+        cover_color: cb.cover_color,
+        cover_image_path: cb.cover_image_path,
+        visibility: cb.visibility,
+        created_at: cb.created_at,
+        recipe_count: (cb.cookbook_recipes as { count: number }[])[0]?.count ?? 0,
+        viewerPermission: s.permission as 'view' | 'edit',
+        sharedWithMe: true,
+      }
+    })
+
+  return [...ownCookbooks, ...sharedCookbooks]
 })
 
 export const listCookbooksForUser = createServerFn()
@@ -75,7 +114,20 @@ export const getCookbook = createServerFn()
       .single()
 
     if (error || !cookbook) throw notFound()
-    if (cookbook.owner_id !== user.id) throw notFound()
+
+    let viewerPermission: 'owner' | 'edit' | 'view' | null = null
+    if (cookbook.owner_id === user.id) {
+      viewerPermission = 'owner'
+    } else {
+      const { data: share } = await supabase
+        .from('cookbook_shares')
+        .select('permission')
+        .eq('cookbook_id', data.id)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      if (!share) throw notFound()
+      viewerPermission = share.permission as 'view' | 'edit'
+    }
 
     const { data: recipeRows, error: recipesError } = await supabase
       .from('cookbook_recipes')
@@ -116,7 +168,7 @@ export const getCookbook = createServerFn()
         },
       }))
 
-    return { ...cookbook, recipes }
+    return { ...cookbook, recipes, viewerPermission }
   })
 
 const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -200,6 +252,7 @@ const UpdateCookbookSchema = z.object({
   description: z.string().optional(),
   cover_style: z.enum(['color', 'image']).optional(),
   cover_color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  visibility: z.enum(['public', 'private']).optional(),
 })
 
 export const updateCookbook = createServerFn({ method: 'POST' })
@@ -213,9 +266,10 @@ export const updateCookbook = createServerFn({ method: 'POST' })
   const description = (data.get('description') as string) || undefined
   const cover_style = (data.get('cover_style') as 'color' | 'image') || undefined
   const cover_color = (data.get('cover_color') as string) || undefined
+  const visibility = (data.get('visibility') as 'public' | 'private') || undefined
   const coverImageFile = data.get('coverImage') as File | null
 
-  UpdateCookbookSchema.parse({ id, name, description, cover_style, cover_color })
+  UpdateCookbookSchema.parse({ id, name, description, cover_style, cover_color, visibility })
 
   const { data: existing, error: fetchError } = await supabase
     .from('cookbooks')
@@ -240,6 +294,7 @@ export const updateCookbook = createServerFn({ method: 'POST' })
   if (cover_image_path !== existing.cover_image_path) {
     updates.cover_image_path = cover_image_path
   }
+  if (visibility !== undefined) updates.visibility = visibility
 
   const { error } = await supabase
     .from('cookbooks')
@@ -336,6 +391,40 @@ export const removeRecipeFromCookbook = createServerFn({ method: 'POST' })
       .eq('recipe_id', data.recipeId)
 
     if (error) throw error
+  })
+
+export const reorderCookbookRecipes = createServerFn({ method: 'POST' })
+  .inputValidator((data: { cookbookId: string; orderedRecipeIds: string[] }) =>
+    z.object({
+      cookbookId: z.string().uuid(),
+      orderedRecipeIds: z.array(z.string().uuid()),
+    }).parse(data)
+  )
+  .handler(async ({ data }) => {
+    const user = await requireAuth()
+    const supabase = getSupabaseClient()
+
+    const { data: cookbook, error: cbError } = await supabase
+      .from('cookbooks')
+      .select('owner_id')
+      .eq('id', data.cookbookId)
+      .single()
+
+    if (cbError || !cookbook || cookbook.owner_id !== user.id) {
+      throw notFound()
+    }
+
+    const updates = data.orderedRecipeIds.map((recipeId, index) =>
+      supabase
+        .from('cookbook_recipes')
+        .update({ sort_order: index })
+        .eq('cookbook_id', data.cookbookId)
+        .eq('recipe_id', recipeId)
+    )
+
+    const results = await Promise.all(updates)
+    const failed = results.find((r) => r.error)
+    if (failed?.error) throw new Error(failed.error.message)
   })
 
 export const listCookbooksWithMembership = createServerFn()

@@ -59,6 +59,14 @@ export function Header({ user }: HeaderProps) {
               >
                 My Diary
               </Link>
+              <Link
+                to="/videos"
+                className="text-sm font-medium no-underline"
+                style={{ color: 'var(--text-muted)' }}
+                activeProps={{ style: { color: 'var(--primary)' } }}
+              >
+                Videos
+              </Link>
             </nav>
             <ProfileDropdown user={user} />
           </>
