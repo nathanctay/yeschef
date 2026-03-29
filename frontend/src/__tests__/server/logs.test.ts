@@ -111,14 +111,14 @@ describe('createLog', () => {
 
   it('throws redirect when unauthenticated', async () => {
     vi.mocked(requireAuth).mockRejectedValueOnce(
-      Object.assign(new Error('Redirect to /auth/signin'), {
+      Object.assign(new Error('Redirect to /signin'), {
         isRedirect: true,
-        to: '/auth/signin',
+        to: '/signin',
       })
     )
 
     await expect(
       createLog({ data: { recipeId: 'r-1', loggedAt: '2026-01-01', notes: '', visibility: 'private' } } as any)
-    ).rejects.toMatchObject({ isRedirect: true, to: '/auth/signin' })
+    ).rejects.toMatchObject({ isRedirect: true, to: '/signin' })
   })
 })

@@ -15,13 +15,8 @@ export function Header({ user }: HeaderProps) {
       }}
     >
       <div className="page-wrap flex items-center justify-between h-14">
-        <Link to="/" className="flex items-center gap-2 no-underline">
-          <span
-            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-bold text-white"
-            style={{ backgroundColor: 'var(--primary)' }}
-          >
-            yesChef
-          </span>
+        <Link to="/" className="flex items-center no-underline">
+          <img src="/logo.png" alt="yesChef" style={{ height: '64px', width: 'auto' }} />
         </Link>
 
         {user ? (
@@ -73,7 +68,7 @@ export function Header({ user }: HeaderProps) {
         ) : (
           <div className="flex items-center gap-2">
             <Link
-              to="/auth/signin"
+              to="/signin"
               className="text-sm font-medium px-3 py-1.5 rounded-md border no-underline transition-colors"
               style={{
                 color: 'var(--text-muted)',
@@ -83,7 +78,7 @@ export function Header({ user }: HeaderProps) {
               Sign in
             </Link>
             <Link
-              to="/auth/signup"
+              to="/signup"
               className="text-sm font-medium px-3 py-1.5 rounded-md no-underline transition-colors text-white"
               style={{ backgroundColor: 'var(--primary)' }}
             >

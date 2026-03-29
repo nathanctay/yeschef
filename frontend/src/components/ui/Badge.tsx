@@ -1,4 +1,4 @@
-import { cva, type VariantProps } from 'cva'
+import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../lib/utils'
 import type { HTMLAttributes } from 'react'
 

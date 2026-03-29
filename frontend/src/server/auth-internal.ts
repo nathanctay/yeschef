@@ -48,7 +48,7 @@ export async function _getSession() {
 
 export async function _requireAuth() {
   const user = await _getSession()
-  if (!user) throw redirect({ to: '/auth/signin' })
+  if (!user) throw redirect({ to: '/signin' })
   return user
 }
 

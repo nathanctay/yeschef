@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VideosRouteImport } from './routes/videos'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SigninRouteImport } from './routes/signin'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
@@ -23,8 +25,6 @@ import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as LogsIdRouteImport } from './routes/logs.$id'
 import { Route as CookbooksNewRouteImport } from './routes/cookbooks.new'
 import { Route as CookbooksIdRouteImport } from './routes/cookbooks.$id'
-import { Route as AuthSignupRouteImport } from './routes/auth.signup'
-import { Route as AuthSigninRouteImport } from './routes/auth.signin'
 import { Route as RecipesIdIndexRouteImport } from './routes/recipes.$id.index'
 import { Route as CookbooksIdIndexRouteImport } from './routes/cookbooks.$id.index'
 import { Route as RecipesIdEditRouteImport } from './routes/recipes.$id.edit'
@@ -33,6 +33,16 @@ import { Route as CookbooksIdEditRouteImport } from './routes/cookbooks.$id.edit
 const VideosRoute = VideosRouteImport.update({
   id: '/videos',
   path: '/videos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExploreRoute = ExploreRouteImport.update({
@@ -100,16 +110,6 @@ const CookbooksIdRoute = CookbooksIdRouteImport.update({
   path: '/cookbooks/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthSignupRoute = AuthSignupRouteImport.update({
-  id: '/auth/signup',
-  path: '/auth/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthSigninRoute = AuthSigninRouteImport.update({
-  id: '/auth/signin',
-  path: '/auth/signin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const RecipesIdIndexRoute = RecipesIdIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -134,9 +134,9 @@ const CookbooksIdEditRoute = CookbooksIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
   '/videos': typeof VideosRoute
-  '/auth/signin': typeof AuthSigninRoute
-  '/auth/signup': typeof AuthSignupRoute
   '/cookbooks/$id': typeof CookbooksIdRouteWithChildren
   '/cookbooks/new': typeof CookbooksNewRoute
   '/logs/$id': typeof LogsIdRoute
@@ -156,9 +156,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
   '/videos': typeof VideosRoute
-  '/auth/signin': typeof AuthSigninRoute
-  '/auth/signup': typeof AuthSignupRoute
   '/cookbooks/new': typeof CookbooksNewRoute
   '/logs/$id': typeof LogsIdRoute
   '/profile/$id': typeof ProfileIdRoute
@@ -177,9 +177,9 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
   '/videos': typeof VideosRoute
-  '/auth/signin': typeof AuthSigninRoute
-  '/auth/signup': typeof AuthSignupRoute
   '/cookbooks/$id': typeof CookbooksIdRouteWithChildren
   '/cookbooks/new': typeof CookbooksNewRoute
   '/logs/$id': typeof LogsIdRoute
@@ -201,9 +201,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/explore'
+    | '/signin'
+    | '/signup'
     | '/videos'
-    | '/auth/signin'
-    | '/auth/signup'
     | '/cookbooks/$id'
     | '/cookbooks/new'
     | '/logs/$id'
@@ -223,9 +223,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/explore'
+    | '/signin'
+    | '/signup'
     | '/videos'
-    | '/auth/signin'
-    | '/auth/signup'
     | '/cookbooks/new'
     | '/logs/$id'
     | '/profile/$id'
@@ -243,9 +243,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/explore'
+    | '/signin'
+    | '/signup'
     | '/videos'
-    | '/auth/signin'
-    | '/auth/signup'
     | '/cookbooks/$id'
     | '/cookbooks/new'
     | '/logs/$id'
@@ -266,9 +266,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExploreRoute: typeof ExploreRoute
+  SigninRoute: typeof SigninRoute
+  SignupRoute: typeof SignupRoute
   VideosRoute: typeof VideosRoute
-  AuthSigninRoute: typeof AuthSigninRoute
-  AuthSignupRoute: typeof AuthSignupRoute
   CookbooksIdRoute: typeof CookbooksIdRouteWithChildren
   CookbooksNewRoute: typeof CookbooksNewRoute
   LogsIdRoute: typeof LogsIdRoute
@@ -289,6 +289,20 @@ declare module '@tanstack/react-router' {
       path: '/videos'
       fullPath: '/videos'
       preLoaderRoute: typeof VideosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explore': {
@@ -382,20 +396,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CookbooksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth/signup': {
-      id: '/auth/signup'
-      path: '/auth/signup'
-      fullPath: '/auth/signup'
-      preLoaderRoute: typeof AuthSignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/signin': {
-      id: '/auth/signin'
-      path: '/auth/signin'
-      fullPath: '/auth/signin'
-      preLoaderRoute: typeof AuthSigninRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/recipes/$id/': {
       id: '/recipes/$id/'
       path: '/'
@@ -458,9 +458,9 @@ const RecipesIdRouteWithChildren = RecipesIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExploreRoute: ExploreRoute,
+  SigninRoute: SigninRoute,
+  SignupRoute: SignupRoute,
   VideosRoute: VideosRoute,
-  AuthSigninRoute: AuthSigninRoute,
-  AuthSignupRoute: AuthSignupRoute,
   CookbooksIdRoute: CookbooksIdRouteWithChildren,
   CookbooksNewRoute: CookbooksNewRoute,
   LogsIdRoute: LogsIdRoute,

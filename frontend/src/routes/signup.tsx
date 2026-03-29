@@ -81,7 +81,7 @@ function SignUpPage() {
               <p className="text-sm text-red-600">{error}</p>
             )}
 
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button type="submit" variant="primary" className="w-full" disabled={pending}>
               {pending ? 'Creating account...' : 'Create account'}
             </Button>
           </form>
@@ -89,7 +89,7 @@ function SignUpPage() {
 
         <p className="text-center text-sm text-[#6B7280] mt-6">
           Already have an account?{' '}
-          <Link to="/auth/signin" className="text-[#E53935] hover:underline font-medium">
+          <Link to="/signin" className="text-[#E53935] hover:underline font-medium">
             Sign in
           </Link>
         </p>
@@ -98,6 +98,6 @@ function SignUpPage() {
   )
 }
 
-export const Route = createFileRoute('/auth/signup')({
+export const Route = createFileRoute('/signup')({
   component: SignUpPage,
 })

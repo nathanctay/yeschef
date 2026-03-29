@@ -61,12 +61,12 @@ describe('getSession', () => {
 })
 
 describe('requireAuth', () => {
-  it('throws a redirect to /auth/signin when getSession returns null', async () => {
+  it('throws a redirect to /signin when getSession returns null', async () => {
     vi.mocked(_requireAuth).mockRejectedValue(
-      Object.assign(new Error('redirect'), { to: '/auth/signin' }),
+      Object.assign(new Error('redirect'), { to: '/signin' }),
     )
 
-    await expect(requireAuth()).rejects.toMatchObject({ to: '/auth/signin' })
+    await expect(requireAuth()).rejects.toMatchObject({ to: '/signin' })
   })
 })
 

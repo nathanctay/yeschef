@@ -25,13 +25,13 @@ function LandingPage() {
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link
-            to="/auth/signin"
+            to="/signin"
             className="rounded-xl border-2 border-[#E53935] bg-[#E53935] px-8 py-3 text-base font-semibold text-white transition hover:bg-[#C62828] hover:border-[#C62828]"
           >
             Sign In
           </Link>
           <Link
-            to="/auth/signup"
+            to="/signup"
             className="rounded-xl border-2 border-[#E53935] bg-transparent px-8 py-3 text-base font-semibold text-[#E53935] transition hover:bg-[#E53935] hover:text-white"
           >
             Create Account
