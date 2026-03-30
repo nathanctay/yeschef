@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VideosRouteImport } from './routes/videos'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RecipesIndexRouteImport } from './routes/recipes.index'
@@ -43,6 +44,11 @@ const SignupRoute = SignupRouteImport.update({
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExploreRoute = ExploreRouteImport.update({
@@ -134,6 +140,7 @@ const CookbooksIdEditRoute = CookbooksIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/videos': typeof VideosRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/videos': typeof VideosRoute
@@ -177,6 +185,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
   '/videos': typeof VideosRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/explore'
+    | '/search'
     | '/signin'
     | '/signup'
     | '/videos'
@@ -223,6 +233,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/explore'
+    | '/search'
     | '/signin'
     | '/signup'
     | '/videos'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/explore'
+    | '/search'
     | '/signin'
     | '/signup'
     | '/videos'
@@ -266,6 +278,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExploreRoute: typeof ExploreRoute
+  SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
   SignupRoute: typeof SignupRoute
   VideosRoute: typeof VideosRoute
@@ -303,6 +316,13 @@ declare module '@tanstack/react-router' {
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explore': {
@@ -458,6 +478,7 @@ const RecipesIdRouteWithChildren = RecipesIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExploreRoute: ExploreRoute,
+  SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
   SignupRoute: SignupRoute,
   VideosRoute: VideosRoute,

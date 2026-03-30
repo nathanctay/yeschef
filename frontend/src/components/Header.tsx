@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ProfileDropdown } from './ProfileDropdown'
+import { SearchBar } from './SearchBar'
 
 interface HeaderProps {
   user: { id: string; displayName: string | null } | null
@@ -20,7 +21,7 @@ export function Header({ user }: HeaderProps) {
         </Link>
 
         {user ? (
-          <>
+          <div className="flex items-center gap-4">
             <nav className="flex items-center gap-6">
               <Link
                 to="/explore"
@@ -63,10 +64,12 @@ export function Header({ user }: HeaderProps) {
                 Videos
               </Link>
             </nav>
+            <SearchBar />
             <ProfileDropdown user={user} />
-          </>
+          </div>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <SearchBar />
             <Link
               to="/signin"
               className="text-sm font-medium px-3 py-1.5 rounded-md border no-underline transition-colors"
